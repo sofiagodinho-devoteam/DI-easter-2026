@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Digital Maturity Assessment — Devoteam Digital Impulse</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'DM Sans',sans-serif;background:#FAFAFA;min-height:100vh}button,input{font-family:inherit}</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const{useState,useMemo,useEffect,useCallback}=React;
+const h=React.createElement;
+
+const QUESTIONS={
+  Processes:[
+    {id:"proc_doc",name:"Process Documentation & Mapping",answers:[
+      {text:"Processes are undocumented and execution relies entirely on basic knowledge and individual habits.",weight:0.0},
+      {text:"Processes are partially documented or outdated and documentation relies on isolated files (e.g., local Visio/Word docs) that don't scale.",weight:0.25},
+      {text:"Standardized documentation exists at the departmental level, but remains siloed.",weight:0.5},
+      {text:"Enterprise-wide standardized documentation is centrally managed, accessible, and features clear ownership.",weight:0.75},
+      {text:"Documentation is dynamically updated using automated process discovery tools, with clear ownership and structured revision cycles.",weight:1.0}
+    ]},
+    {id:"proc_auto",name:"Task Execution & Automation",answers:[
+      {text:"Task-execution is entirely manual and automation is not recognized as a viable priority.",weight:0.0},
+      {text:"Task-execution is supported by isolated, ad-hoc automations (e.g., individual macros, basic scripts) but exists without IT oversight.",weight:0.25},
+      {text:"Some automations are implemented for specific departmental workflows (e.g., RPA) but these initiatives are reactive.",weight:0.5},
+      {text:"Core workflows are automated, following a concise roadmap and managed by a dedicated team or Center of Excellence (CoE).",weight:0.75},
+      {text:"Most manual processes are automated, leveraging agentic automation for end-to-end autonomous execution with self-learning and self-correcting capabilities.",weight:1.0}
+    ]}
+  ],
+  "Data & AI":[
+    {id:"data_analytics",name:"Analytics & Utilization",answers:[
+      {text:"Decisions rely on intuition or historical knowledge as no structured reporting practices are in place.",weight:0.0},
+      {text:"Decisions rely on manual and fragmented reporting (e.g., Excel sheets).",weight:0.25},
+      {text:"Decisions rely on standardized BI dashboards with information in silos as cross-functional correlations are difficult.",weight:0.5},
+      {text:"Decisions rely on cross-functional and automated dashboards with near real-time reporting.",weight:0.75},
+      {text:"Decisions rely on predictive analytics with AI automatically triggering operational responses.",weight:1.0}
+    ]},
+    {id:"data_infra",name:"Infrastructure & Integrations",answers:[
+      {text:"Data is stored in siloed, legacy systems with no integration strategy; manual extractions are the norm.",weight:0.0},
+      {text:"Data is stored in basic central repositories with ad-hoc manual integrations.",weight:0.25},
+      {text:"Data is stored in modern, cloud-based platforms with standardized APIs for core integrations.",weight:0.5},
+      {text:"Data is stored in a scalable cloud architecture with real-time or near real-time integrations across systems.",weight:0.75},
+      {text:"Data resides in a fully decentralized governed ecosystem (e.g., Fabric) with internal APIs enabling real-time data products.",weight:1.0}
+    ]},
+    {id:"data_steward",name:"Stewardship & Quality Control",answers:[
+      {text:"Data is not formally owned, is of poor quality and business units do not trust/rely on it.",weight:0.0},
+      {text:"No formal data standards or dictionaries exist but there are some reactive quality checks (although in silos).",weight:0.25},
+      {text:"Data stewards are appointed, quality is monitored on schedule and a central repository is maintained.",weight:0.5},
+      {text:"Data quality is proactively measured against defined KPIs and actively owned.",weight:0.75},
+      {text:"Data governance is fully automated and AI/ML powers data quality practices such as cataloging, anomaly detection, and continuous compliance.",weight:1.0}
+    ]},
+    {id:"ai_strategy",name:"AI Strategy & Readiness",answers:[
+      {text:"AI is not on the organization's radar and no use cases have been identified.",weight:0.0},
+      {text:"There is general awareness of AI potential but no specific use cases have been identified or prioritized.",weight:0.25},
+      {text:"AI use cases are identified and prioritized with initial pilots or proof-of-concepts underway.",weight:0.5},
+      {text:"AI use cases are deployed in production across multiple business areas with a dedicated AI strategy and measurable impact.",weight:0.75},
+      {text:"AI is embedded in the organization's core strategy with a comprehensive roadmap driving continuous innovation across all areas.",weight:1.0}
+    ]},
+    {id:"ai_ops",name:"AI Deployment & Operations",answers:[
+      {text:"No AI tools or agents are deployed; all tasks are performed with traditional software.",weight:0.0},
+      {text:"Basic AI tools are used sporadically (e.g., chatbots, translation) without organizational coordination.",weight:0.25},
+      {text:"AI solutions are deployed for specific workflows with some governance and a dedicated team managing initiatives.",weight:0.5},
+      {text:"AI agents actively perform operational tasks with MLOps practices and an AI governance framework in place.",weight:0.75},
+      {text:"Autonomous AI agents execute end-to-end processes with minimal human oversight, supported by mature MLOps and responsible AI practices.",weight:1.0}
+    ]}
+  ]
+};
+
+const WEIGHTS={
+  Processes:{subDimensions:["Automation","Optimization"],questions:["proc_doc","proc_auto"],matrix:[[0.3,0.7],[0.7,0.3]]},
+  "Data & AI":{subDimensions:["Data Governance & Quality","Data Architecture & Platforms","Data-Driven Decision Making","AI Strategy & Use Cases","AI Adoption & Operations"],questions:["data_analytics","data_infra","data_steward","ai_strategy","ai_ops"],matrix:[[0.05,0.10,0.65,0.05,0.15],[0.10,0.65,0.05,0.05,0.15],[0.60,0.05,0.15,0.05,0.15],[0.10,0.10,0.05,0.70,0.05],[0.15,0.10,0.10,0.15,0.50]]}
+};
+
+const LEVELS=[{num:1,name:"Reactive"},{num:2,name:"Developing"},{num:3,name:"Defined"},{num:4,name:"Managed"},{num:5,name:"Innovative"}];
+const toLevel=s=>s*4+1;
+const getLevelName=l=>l<1.5?"Reactive":l<2.5?"Developing":l<3.5?"Defined":l<4.5?"Managed":"Innovative";
+const gc=l=>l<2?"#F8485E":l<3?"#F59E0B":l<4?"#EAB308":"#22C55E";
+const gbg=l=>l<2?"#FFF0F1":l<3?"#FFFBEB":l<4?"#FEFCE8":"#F0FDF4";
+
+function calculateResults(answers){
+  const results={};
+  for(const[dn,cfg]of Object.entries(WEIGHTS)){
+    const qw=cfg.questions.map(qid=>answers[qid]??-1);
+    if(qw.some(w=>w<0)){results[dn]=null;continue;}
+    const ss=cfg.subDimensions.map((_,si)=>{let s=0;for(let qi=0;qi<cfg.questions.length;qi++)s+=qw[qi]*cfg.matrix[qi][si];return s;});
+    results[dn]={subDimensions:cfg.subDimensions.map((name,i)=>({name,score:ss[i],level:toLevel(ss[i])})),average:toLevel(ss.reduce((a,b)=>a+b,0)/ss.length)};
+  }
+  return results;
+}
+
+const SK="dma-assessments";
+function loadS(){try{const d=localStorage.getItem(SK);return d?JSON.parse(d):[];}catch{return[];}}
+function saveS(d){try{localStorage.setItem(SK,JSON.stringify(d));return true;}catch{return false;}}
+
+function genPDF(ent,proj,results,answers){
+  const allS=Object.entries(results).filter(([,r])=>r).flatMap(([dim,r])=>r.subDimensions.map(s=>({...s,dimension:dim})));
+  const oL=allS.length?allS.reduce((a,s)=>a+s.level,0)/allS.length:0;
+  const dt=new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"long",year:"numeric"});
+  const allQ=Object.entries(QUESTIONS).flatMap(([dim,qs])=>qs.map(q=>({...q,dimension:dim})));
+  const ad=allQ.map(q=>{const w=answers[q.id];const sel=q.answers.find(a=>a.weight===w);return{dimension:q.dimension,question:q.name,level:w!==undefined?Math.round(w*4+1):"\u2014",answer:sel?sel.text:"\u2014"};});
+
+  // Group subs by dimension for rowspan
+  const dims=[];let cur=null;
+  allS.forEach((s,i)=>{if(!cur||s.dimension!==cur.name){cur={name:s.dimension,count:1,startIdx:i};dims.push(cur);}else cur.count++;});
+
+  // Build maturity map rows with merged dimension cells
+  let mapRows="";
+  allS.forEach((s,i)=>{
+    const dim=dims.find(d=>d.startIdx===i);
+    const pct=((s.level-1)/4*100);
+    const barColor=gc(s.level);
+    mapRows+=`<tr style="border-bottom:1px solid #f0f0f0">`;
+    if(dim){
+      mapRows+=`<td rowspan="${dim.count}" style="padding:8px 10px;font-weight:700;font-size:11px;color:#333;background:#FDDADE;vertical-align:middle;border-right:1px solid #eee;width:100px">${dim.name}</td>`;
+    }
+    mapRows+=`<td style="padding:8px 10px;font-size:10.5px;font-style:italic;color:#555;border-right:1px solid #eee;width:165px">${s.name}</td>`;
+    mapRows+=`<td style="padding:10px 12px;position:relative;height:44px">
+      <div style="position:relative;height:8px;margin:6px 0">
+        <div style="position:absolute;left:0;right:0;top:50%;height:2px;background:#D9D9D9;transform:translateY(-50%)"></div>
+        <div style="position:absolute;left:0;width:${pct}%;top:50%;height:5px;background:${barColor};transform:translateY(-50%);border-radius:3px;opacity:0.5"></div>
+        <div style="position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:#434343;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></div>
+      </div>
+    </td>`;
+    mapRows+=`<td style="text-align:center;font-weight:700;font-size:11px;color:${barColor};width:45px">${s.level.toFixed(1)}</td></tr>`;
+  });
+
+  // Build radar SVG
+  const n=allS.length;const cx=180,cy=180,maxR=120;
+  const getP=(i,v)=>{const a=(Math.PI*2*i)/n-Math.PI/2;const r=(v/5)*maxR;return{x:cx+r*Math.cos(a),y:cy+r*Math.sin(a)};};
+  const pts=allS.map((s,i)=>getP(i,s.level));
+  const polyD=pts.map((p,i)=>`${i===0?"M":"L"} ${p.x} ${p.y}`).join(" ")+" Z";
+  const wrap=(t,mx)=>{if(t.length<=mx)return[t];const w=t.split(" ");const ls=[];let c="";for(const x of w){if(c&&(c+" "+x).length>mx){ls.push(c);c=x;}else c=c?c+" "+x:x;}if(c)ls.push(c);return ls;};
+
+  let radarSVG=`<svg viewBox="0 0 360 360" width="340" height="340" xmlns="http://www.w3.org/2000/svg" style="font-family:DM Sans,sans-serif">`;
+  // Grid rings
+  for(let ring=1;ring<=5;ring++){
+    const rp=Array.from({length:n},(_,i)=>getP(i,ring));
+    radarSVG+=`<path d="${rp.map((p,i)=>`${i===0?"M":"L"} ${p.x} ${p.y}`).join(" ")} Z" fill="none" stroke="#e0e0e0" stroke-width="0.8"/>`;
+  }
+  // Axis lines
+  for(let i=0;i<n;i++){const p=getP(i,5);radarSVG+=`<line x1="${cx}" y1="${cy}" x2="${p.x}" y2="${p.y}" stroke="#e8e8e8" stroke-width="0.6"/>`;}
+  // Data polygon
+  radarSVG+=`<path d="${polyD}" fill="rgba(248,72,94,0.12)" stroke="#F8485E" stroke-width="2.5"/>`;
+  // Data points
+  pts.forEach((p,i)=>{radarSVG+=`<circle cx="${p.x}" cy="${p.y}" r="4.5" fill="#434343" stroke="#fff" stroke-width="2"/>`;});
+  // Labels
+  allS.forEach((s,i)=>{
+    const lr=maxR+42;const a=(Math.PI*2*i)/n-Math.PI/2;
+    const lx=cx+lr*Math.cos(a);const ly=cy+lr*Math.sin(a);
+    const isR=lx>cx+5;const isL=lx<cx-5;const isCx=!isR&&!isL;
+    const lines=wrap(s.name,16);const lH=11;const tH=lines.length*lH;
+    const isB=ly>cy+5;const oY=isB?tH/2:ly<cy-5?-tH/2:0;
+    const bx=isCx?lx-44:isR?lx-2:lx-88;
+    radarSVG+=`<rect x="${bx}" y="${ly-tH/2+oY-4}" width="90" height="${tH+8}" rx="4" fill="white" stroke="#ddd" stroke-width="0.6"/>`;
+    radarSVG+=`<circle cx="${bx+5}" cy="${ly+oY}" r="3" fill="${gc(s.level)}"/>`;
+    lines.forEach((ln,li)=>{radarSVG+=`<text x="${bx+12}" y="${ly+oY-tH/2+(li+1)*lH-2}" font-size="8" fill="#444" font-weight="500">${ln}</text>`;});
+  });
+  // Level numbers
+  for(let r=1;r<=5;r++){const p=getP(0,r);radarSVG+=`<text x="${p.x+3}" y="${p.y-3}" font-size="7" fill="#bbb">${r}</text>`;}
+  radarSVG+=`</svg>`;
+
+  // Level column headers with gridlines
+  const lvlHeaders=LEVELS.map(l=>`<div style="flex:1;text-align:center;font-size:9px;font-weight:600;color:#fff;border-left:1px solid rgba(255,255,255,0.2);padding:2px 0"><div>${l.name}</div><div style="font-weight:400;font-size:8px;color:rgba(255,255,255,0.65)">Level ${l.num}</div></div>`).join("");
+
+  return`<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;color:#333;padding:36px;max-width:900px;margin:0 auto;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+@media print{body{padding:18px}@page{size:A4;margin:14mm}}
+.hdr{text-align:center;margin-bottom:24px;padding-bottom:14px;border-bottom:3px solid #F8485E}
+.hdr h1{font-size:21px;color:#1a1a1a;margin-bottom:3px}.hdr p{font-size:10px;color:#888}
+.ov{text-align:center;margin:16px 0;padding:18px;background:#FAFAFA;border-radius:12px;border:1px solid #eee}
+.ov .sc{font-size:48px;font-weight:700;color:#1a1a1a}.ov .lb{font-size:14px;font-weight:600}
+.dms{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
+.dc{background:#FAFAFA;border-radius:10px;padding:13px;border:1px solid #eee}
+.dc .nm{font-size:8px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.dc .vl{font-size:24px;font-weight:700;color:#1a1a1a;margin:2px 0}
+.dc .lv{font-size:9px;font-weight:500}
+.dc .bb{margin-top:6px;background:#eee;border-radius:4px;height:5px;overflow:hidden}
+.dc .bf{height:100%;border-radius:4px}
+.sec{margin:22px 0 8px;font-size:13px;font-weight:700;color:#333}
+table{width:100%;border-collapse:collapse;font-size:10.5px;margin-bottom:14px}
+th{text-align:left;padding:6px;color:#888;font-weight:600;font-size:8px;text-transform:uppercase;border-bottom:2px solid #eee}
+td{padding:6px;border-bottom:1px solid #f5f5f5}
+.sb{padding:2px 7px;border-radius:4px;font-weight:700;font-size:9px}
+.gr{display:flex;align-items:center;margin-bottom:7px}
+.gl{width:200px;font-size:9.5px;color:#555;flex-shrink:0}
+.gbg{flex:1;background:#f0f0f0;border-radius:5px;height:13px;overflow:hidden;margin:0 7px}
+.gf{height:100%;border-radius:5px}
+.gv{width:45px;font-size:9.5px;font-weight:700;text-align:right}
+.ft{text-align:center;margin-top:24px;padding-top:12px;border-top:1px solid #eee;font-size:7px;color:#ccc}
+</style></head><body>
+<div class="hdr"><h1>Digital Maturity Assessment</h1><p>${ent||"\u2014"}${proj?" \u2014 "+proj:""} | ${dt}</p><p style="margin-top:2px">Devoteam Digital Impulse</p></div>
+<div class="ov"><div class="sc">${oL.toFixed(1)}</div><div class="lb" style="color:${gc(oL)}">${getLevelName(oL)}</div><div style="font-size:9px;color:#999;margin-top:2px">Overall Digital Maturity Level</div></div>
+<div class="dms">${Object.entries(results).filter(([,r])=>r).map(([dim,r])=>`<div class="dc"><div class="nm">${dim}</div><div class="vl">${r.average.toFixed(1)}</div><div class="lv" style="color:${gc(r.average)}">${getLevelName(r.average)}</div><div class="bb"><div class="bf" style="width:${(r.average/5)*100}%;background:${gc(r.average)}"></div></div></div>`).join("")}</div>
+
+<div class="sec">Maturity Map</div>
+<div style="border:1px solid #eee;border-radius:8px;overflow:hidden;margin-bottom:16px">
+  <table style="margin:0;border-collapse:collapse">
+    <thead><tr>
+      <th style="background:#F8485E;color:#fff;font-size:9px;padding:9px 10px;text-align:center;width:100px;border:none">Dimension</th>
+      <th style="background:#F8485E;color:#fff;font-size:9px;padding:9px 10px;text-align:center;width:165px;border:none">Sub-Dimension</th>
+      <th style="background:#F8485E;color:#fff;font-size:9px;padding:9px 10px;border:none">
+        <div style="display:flex">${lvlHeaders}</div>
+      </th>
+      <th style="background:#434343;color:#fff;font-size:9px;padding:9px 10px;text-align:center;width:45px;border:none">Score</th>
+    </tr></thead>
+    <tbody>${mapRows}
+      <tr style="background:#434343;color:#fff">
+        <td colspan="2" style="padding:10px;font-weight:700;font-size:11px;text-align:center;border:none">Overall Average</td>
+        <td style="padding:10px 12px;border:none">
+          <div style="position:relative;height:8px;margin:6px 0">
+            <div style="position:absolute;left:0;right:0;top:50%;height:2px;background:#666;transform:translateY(-50%)"></div>
+            <div style="position:absolute;left:0;width:${(oL-1)/4*100}%;top:50%;height:5px;background:#F8485E;transform:translateY(-50%);border-radius:3px;opacity:0.4"></div>
+            <div style="position:absolute;left:${(oL-1)/4*100}%;top:50%;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:50%;background:#F8485E;border:3px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.3)"></div>
+          </div>
+        </td>
+        <td style="text-align:center;font-weight:700;font-size:11px;color:#F8485E;border:none">${oL.toFixed(1)}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div style="margin-bottom:16px">
+  <div>
+    <div class="sec" style="margin-top:0">Gap to Level 5</div>
+    ${allS.map(s=>`<div class="gr"><div class="gl">${s.name}</div><div class="gbg"><div class="gf" style="width:${(s.level/5)*100}%;background:linear-gradient(90deg,${gbg(s.level)},${gc(s.level)})"></div></div><div class="gv" style="color:${gc(s.level)}">${s.level.toFixed(1)}/5</div></div>`).join("")}
+  </div>
+  <div style="text-align:center;margin-top:16px"><div class="sec">Radar View</div>${radarSVG}</div>
+</div>
+
+<div style="page-break-before:always"></div>
+<div class="sec" style="margin-top:0">Assessment Answers</div>
+<table><thead><tr><th>Dimension</th><th>Question</th><th>Level</th><th>Selected Answer</th></tr></thead><tbody>
+${ad.map(a=>{const lv=typeof a.level==="number"?a.level:1;return`<tr><td style="font-weight:600">${a.dimension}</td><td style="font-weight:500">${a.question}</td><td style="text-align:center"><span class="sb" style="background:${gbg(lv)};color:${gc(lv)}">${a.level}</span></td><td style="color:#666;font-size:9px;line-height:1.4">${a.answer}</td></tr>`;}).join("")}
+</tbody></table>
+<div class="sec">Sub-Dimension Breakdown</div>
+<table><thead><tr><th>Dimension</th><th>Sub-Dimension</th><th style="text-align:center">Score</th><th style="text-align:center">Level</th><th style="text-align:center">Name</th></tr></thead><tbody>
+${allS.map((s,i)=>`<tr><td style="font-weight:600">${i===0||s.dimension!==allS[i-1].dimension?s.dimension:""}</td><td>${s.name}</td><td style="text-align:center">${s.score.toFixed(3)}</td><td style="text-align:center"><span class="sb" style="background:${gbg(s.level)};color:${gc(s.level)}">${s.level.toFixed(1)}</span></td><td style="text-align:center;color:${gc(s.level)};font-weight:600">${getLevelName(s.level)}</td></tr>`).join("")}
+</tbody></table>
+<div class="ft">Devoteam Digital Impulse \u2014 Digital Maturity Assessment \u2014 ${dt}</div>
+</body></html>`;
+}
+function QuestionCard({question,selected,onSelect,index}){
+  const lc=["#F8485E","#E8566A","#D96476","#C97282","#BA808E"];
+  return h("div",{style:{marginBottom:16,background:"#fff",borderRadius:10,border:"1px solid #eee",overflow:"hidden"}},
+    h("div",{style:{padding:"10px 14px",background:"#FAFAFA",borderBottom:"1px solid #f0f0f0",display:"flex",alignItems:"center",gap:9}},
+      h("span",{style:{background:"#F8485E",color:"#fff",width:22,height:22,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0}},index+1),
+      h("span",{style:{fontSize:12.5,fontWeight:600,color:"#333"}},question.name),
+      selected!==undefined&&h("span",{style:{marginLeft:"auto",fontSize:10,color:"#F8485E",fontWeight:600}},"Level "+Math.round(selected*4+1))
+    ),
+    h("div",{style:{padding:6}},
+      ...question.answers.map((ans,ai)=>{
+        const isSel=selected===ans.weight;
+        return h("button",{key:ai,onClick:()=>onSelect(question.id,ans.weight),style:{display:"flex",alignItems:"flex-start",gap:9,width:"100%",padding:"8px 10px",margin:"1px 0",borderRadius:7,border:"none",background:isSel?"#FFF0F1":"transparent",cursor:"pointer",textAlign:"left",outline:isSel?"2px solid #F8485E":"none"}},
+          h("span",{style:{width:18,height:18,borderRadius:"50%",flexShrink:0,marginTop:1,border:isSel?"none":"2px solid #ccc",background:isSel?lc[ai]:"transparent",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:9,fontWeight:700}},isSel&&"\u2713"),
+          h("div",null,
+            h("span",{style:{fontSize:9,fontWeight:600,color:lc[ai],textTransform:"uppercase",letterSpacing:".3px"}},"Level "+(ai+1)),
+            h("p",{style:{fontSize:11,color:"#444",margin:"2px 0 0",lineHeight:1.4}},ans.text)
+          )
+        );
+      })
+    )
+  );
+}
+
+function DotPlot({results}){
+  const[hovered,setHovered]=useState(null);
+  const allS=Object.entries(results).filter(([,r])=>r).flatMap(([dim,r])=>r.subDimensions.map(s=>({...s,dimension:dim})));
+  const ov=allS.reduce((a,s)=>a+s.level,0)/allS.length;
+  return h("div",{style:{overflow:"hidden",borderRadius:8}},
+    h("div",{style:{display:"grid",gridTemplateColumns:"90px 150px repeat(5, 1fr)",borderBottom:"2px solid #eee"}},
+      ...["Dimension","Sub-Dimension"].map(t=>h("div",{key:t,style:{background:"#F8485E",color:"#fff",padding:"9px 5px",fontWeight:700,fontSize:10,display:"flex",alignItems:"center",justifyContent:"center"}},t)),
+      ...LEVELS.map(l=>h("div",{key:l.num,style:{background:"#F8485E",color:"#fff",padding:"7px 2px",textAlign:"center",fontSize:9.5,fontWeight:700,lineHeight:"1.35"}},h("div",null,l.name),h("div",{style:{fontSize:8.5,opacity:.7,fontWeight:400}},"Level "+l.num)))
+    ),
+    ...Object.entries(results).filter(([,r])=>r).flatMap(([dim,r])=>r.subDimensions.map((sub,si)=>{
+      const k=dim+"-"+si;const isH=hovered===k;
+      return h("div",{key:k,onMouseEnter:()=>setHovered(k),onMouseLeave:()=>setHovered(null),style:{display:"grid",gridTemplateColumns:"90px 150px repeat(5, 1fr)",borderBottom:"1px solid #f0f0f0",background:isH?"#FFF5F6":si%2===0?"#FAFAFA":"#fff"}},
+        h("div",{style:{padding:"8px 6px",fontWeight:700,fontSize:10,color:"#333",display:"flex",alignItems:"center",background:si===0?"#FDDADE":"transparent",borderRight:"1px solid #f0f0f0"}},si===0?dim:""),
+        h("div",{style:{padding:"8px 6px",fontSize:10,color:"#444",display:"flex",alignItems:"center",fontStyle:"italic",borderRight:"1px solid #eee"}},sub.name),
+        h("div",{style:{gridColumn:"3/8",position:"relative",display:"flex",alignItems:"center",padding:"0 10px",minHeight:36}},
+          h("div",{style:{position:"absolute",left:10,right:10,height:2,background:"#D9D9D9",top:"50%"}}),
+          ...LEVELS.map(l=>h("div",{key:l.num,style:{position:"absolute",left:((l.num-1)/4*100)+"%",width:1,height:"55%",background:"#eee",top:"22.5%"}})),
+          h("div",{style:{position:"absolute",left:10,width:"calc("+((sub.level-1)/4*100)+"% - 10px)",height:3,background:gc(sub.level),top:"calc(50% - .5px)",borderRadius:2,opacity:.35}}),
+          h("div",{style:{position:"absolute",left:"calc("+((sub.level-1)/4*100)+"%)",top:"50%",transform:"translate(-50%,-50%)",width:isH?16:12,height:isH?16:12,borderRadius:"50%",background:"#434343",border:"2px solid #fff",boxShadow:isH?"0 0 0 3px rgba(248,72,94,.3)":"0 1px 3px rgba(0,0,0,.15)",transition:"all .18s",zIndex:2}}),
+          isH&&h("div",{style:{position:"absolute",left:"calc("+((sub.level-1)/4*100)+"%)",top:-2,transform:"translate(-50%,-100%)",background:"#434343",color:"#fff",padding:"2px 7px",borderRadius:4,fontSize:10,fontWeight:700,zIndex:3}},sub.level.toFixed(1))
+        )
+      );
+    })),
+    h("div",{style:{display:"grid",gridTemplateColumns:"90px 150px repeat(5, 1fr)",borderTop:"2px solid #ddd",background:"#434343"}},
+      h("div",{style:{gridColumn:"1/3",padding:"8px",fontWeight:700,fontSize:11,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center"}},"Overall Average"),
+      h("div",{style:{gridColumn:"3/8",position:"relative",display:"flex",alignItems:"center",padding:"0 10px",minHeight:36}},
+        h("div",{style:{position:"absolute",left:10,right:10,height:2,background:"#666",top:"50%"}}),
+        h("div",{style:{position:"absolute",left:"calc("+((ov-1)/4*100)+"% - 15px)",width:30,height:"100%",background:"rgba(248,72,94,.2)",top:0,borderRadius:4}}),
+        h("div",{style:{position:"absolute",left:"calc("+((ov-1)/4*100)+"%)",top:"50%",transform:"translate(-50%,-50%)",width:15,height:15,borderRadius:"50%",background:"#F8485E",border:"3px solid #fff",zIndex:2}}),
+        h("div",{style:{position:"absolute",left:"calc("+((ov-1)/4*100)+"% + 17px)",top:"50%",transform:"translateY(-50%)",background:"#F8485E",color:"#fff",padding:"3px 8px",borderRadius:4,fontSize:10,fontWeight:700}},"Avg: "+ov.toFixed(1))
+      )
+    )
+  );
+}
+
+function RadarChart({results}){
+  const allS=Object.entries(results).filter(([,r])=>r).flatMap(([,r])=>r.subDimensions);
+  const n=allS.length;if(n<3)return null;
+  const cx=200,cy=200,maxR=125;
+  const getP=(i,v)=>{const a=(Math.PI*2*i)/n-Math.PI/2;const r=(v/5)*maxR;return{x:cx+r*Math.cos(a),y:cy+r*Math.sin(a)};};
+  const pts=allS.map((s,i)=>getP(i,s.level));
+  const pathD=pts.map((p,i)=>(i===0?"M":"L")+" "+p.x+" "+p.y).join(" ")+" Z";
+  const wrap=(t,mx)=>{if(t.length<=mx)return[t];const w=t.split(" ");const ls=[];let c="";for(const x of w){if(c&&(c+" "+x).length>mx){ls.push(c);c=x;}else c=c?c+" "+x:x;}if(c)ls.push(c);return ls;};
+  return h("svg",{viewBox:"0 0 400 400",style:{width:"100%",maxWidth:400}},
+    ...[1,2,3,4,5].map(ring=>{const rp=Array.from({length:n},(_,i)=>getP(i,ring));return h("path",{key:"r"+ring,d:rp.map((p,i)=>(i===0?"M":"L")+" "+p.x+" "+p.y).join(" ")+" Z",fill:"none",stroke:"#e0e0e0",strokeWidth:.8});}),
+    ...allS.map((_,i)=>{const p=getP(i,5);return h("line",{key:"a"+i,x1:cx,y1:cy,x2:p.x,y2:p.y,stroke:"#e8e8e8",strokeWidth:.6});}),
+    h("path",{key:"poly",d:pathD,fill:"rgba(248,72,94,.12)",stroke:"#F8485E",strokeWidth:2.5}),
+    ...pts.map((p,i)=>h("circle",{key:"p"+i,cx:p.x,cy:p.y,r:5,fill:"#434343",stroke:"#fff",strokeWidth:2})),
+    ...allS.flatMap((s,i)=>{
+      const lr=maxR+48;const a=(Math.PI*2*i)/n-Math.PI/2;
+      const lx=cx+lr*Math.cos(a);const ly=cy+lr*Math.sin(a);
+      const isR=lx>cx+5;const isL=lx<cx-5;const isCx=!isR&&!isL;
+      const lines=wrap(s.name,16);const lH=11;const tH=lines.length*lH;
+      const isB=ly>cy+5;const oY=isB?tH/2:ly<cy-5?-tH/2:0;
+      const bx=isCx?lx-46:isR?lx-4:lx-90;
+      return[
+        h("rect",{key:"bg"+i,x:bx,y:ly-tH/2+oY-4,width:94,height:tH+8,rx:5,fill:"white",stroke:"#ddd",strokeWidth:.7}),
+        h("circle",{key:"cd"+i,cx:bx+6,cy:ly+oY,r:3.5,fill:gc(s.level)}),
+        ...lines.map((ln,li)=>h("text",{key:"t"+i+"-"+li,x:bx+14,y:ly+oY-tH/2+(li+1)*lH-2,fontSize:8.5,fill:"#444",fontWeight:500,fontFamily:"DM Sans,sans-serif"},ln))
+      ];
+    }),
+    ...[1,2,3,4,5].map(r=>h("text",{key:"n"+r,x:getP(0,r).x+4,y:getP(0,r).y-4,fontSize:7.5,fill:"#bbb"},r))
+  );
+}
+
+function GapBars({results}){
+  const allS=Object.entries(results).filter(([,r])=>r).flatMap(([dim,r])=>r.subDimensions.map(s=>({...s,dimension:dim})));
+  return h("div",null,...allS.map(s=>
+    h("div",{key:s.name,style:{marginBottom:10}},
+      h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:2}},
+        h("span",{style:{fontSize:10.5,color:"#555"}},h("span",{style:{fontWeight:600}},s.dimension)," \u2014 ",s.name),
+        h("span",{style:{fontSize:11,fontWeight:700,color:gc(s.level)}},s.level.toFixed(1)+"/5")
+      ),
+      h("div",{style:{background:"#f0f0f0",borderRadius:6,height:15,overflow:"hidden"}},
+        h("div",{style:{width:(s.level/5*100)+"%",height:"100%",background:"linear-gradient(90deg,"+gbg(s.level)+","+gc(s.level)+")",borderRadius:6}})
+      )
+    )
+  ));
+}
+
+function App(){
+  const[answers,setAnswers]=useState({});
+  const[view,setView]=useState("dotplot");
+  const[step,setStep]=useState("assess");
+  const[ent,setEnt]=useState("");
+  const[proj,setProj]=useState("");
+  const[saved,setSaved]=useState([]);
+  const[showS,setShowS]=useState(false);
+  const[sMsg,setSMsg]=useState("");
+
+  useEffect(()=>{setSaved(loadS());},[]);
+  const setAns=(qid,w)=>setAnswers(p=>({...p,[qid]:w}));
+  const res=useMemo(()=>calculateResults(answers),[answers]);
+  const allDone=Object.values(res).every(r=>r!==null);
+  const tQ=Object.values(QUESTIONS).flat().length;
+  const aN=Object.keys(answers).length;
+  const allS=allDone?Object.entries(res).filter(([,r])=>r).flatMap(([,r])=>r.subDimensions):[];
+  const oL=allS.length?allS.reduce((a,s)=>a+s.level,0)/allS.length:0;
+
+  const doSave=useCallback(()=>{
+    if(!allDone)return;
+    const e={enterprise:ent,project:proj,answers,date:new Date().toLocaleDateString("en-GB"),overallLevel:oL.toFixed(1)};
+    const u=[...saved,e];if(saveS(u)){setSaved(u);setSMsg("Saved!");setTimeout(()=>setSMsg(""),2000);}
+  },[allDone,ent,proj,answers,oL,saved]);
+
+  const doLoad=a=>{setEnt(a.enterprise||"");setProj(a.project||"");setAnswers(a.answers||{});setShowS(false);setStep("results");};
+  const doDel=i=>{const u=saved.filter((_,j)=>j!==i);saveS(u);setSaved(u);};
+  const doPDF=useCallback(()=>{
+    if(!allDone)return;
+    const html=genPDF(ent,proj,res,answers);
+    const iframe=document.createElement("iframe");
+    iframe.style.cssText="position:fixed;top:0;left:0;width:100%;height:100%;border:none;z-index:99999;background:#fff;";
+    document.body.appendChild(iframe);
+    const doc=iframe.contentDocument||iframe.contentWindow.document;
+    doc.open();doc.write(html);doc.close();
+    iframe.contentWindow.onafterprint=()=>{document.body.removeChild(iframe);};
+    setTimeout(()=>{iframe.contentWindow.focus();iframe.contentWindow.print();},600);
+  },[allDone,ent,proj,res,answers]);
+
+  let qi=0;
+
+  return h("div",{style:{background:"#FAFAFA",minHeight:"100vh"}},
+    h("div",{style:{background:"#fff",borderBottom:"1px solid #eee",padding:"11px 14px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:10,flexWrap:"wrap",gap:7}},
+      h("div",{style:{display:"flex",alignItems:"center",gap:9}},
+        h("div",{style:{width:28,height:28,borderRadius:6,background:"#F8485E",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:11}},"DI"),
+        h("div",null,h("div",{style:{fontSize:12,fontWeight:700,color:"#1a1a1a"}},"Digital Maturity Assessment"),h("div",{style:{fontSize:8.5,color:"#999"}},"Devoteam Digital Impulse"))
+      ),
+      h("div",{style:{display:"flex",gap:4,flexWrap:"wrap"}},
+        ...[{id:"assess",lb:"Assessment",ok:true},{id:"results",lb:"Dashboard"+(allDone?"":" ("+aN+"/"+tQ+")"),ok:allDone}].map(t=>
+          h("button",{key:t.id,onClick:()=>{if(t.ok)setStep(t.id);},style:{padding:"5px 11px",borderRadius:5,fontSize:10,fontWeight:600,cursor:t.ok?"pointer":"not-allowed",border:step===t.id?"2px solid #F8485E":"1px solid #ddd",background:step===t.id?"#FFF0F1":"#fff",color:step===t.id?"#F8485E":"#999",opacity:t.ok?1:.5}},t.lb)
+        ),
+        h("button",{onClick:()=>setShowS(!showS),style:{padding:"5px 11px",borderRadius:5,fontSize:10,fontWeight:600,cursor:"pointer",border:showS?"2px solid #434343":"1px solid #ddd",background:showS?"#f5f5f5":"#fff",color:"#666"}},"Saved ("+saved.length+")")
+      )
+    ),
+    h("div",{style:{maxWidth:760,margin:"0 auto",padding:"14px 12px"}},
+      showS&&h("div",{style:{background:"#fff",borderRadius:10,border:"1px solid #eee",marginBottom:14,overflow:"hidden"}},
+        h("div",{style:{padding:"9px 13px",background:"#FAFAFA",borderBottom:"1px solid #f0f0f0",fontWeight:600,fontSize:12,color:"#333"}},"Saved Assessments"),
+        !saved.length?h("div",{style:{padding:16,textAlign:"center"}},h("p",{style:{fontSize:12,color:"#999"}},"No saved assessments yet."),h("button",{onClick:()=>setShowS(false),style:{marginTop:10,padding:"6px 14px",borderRadius:5,border:"1px solid #ddd",background:"#fff",color:"#666",fontSize:10,fontWeight:600,cursor:"pointer"}},"Close")):
+        h("div",{style:{padding:10}},
+          ...saved.map((a,i)=>h("div",{key:i,style:{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:7,border:"1px solid #eee",marginBottom:5,background:"#FAFAFA"}},
+            h("div",{style:{flex:1}},h("div",{style:{fontSize:12,fontWeight:600,color:"#333"}},a.enterprise||"Untitled"),h("div",{style:{fontSize:9,color:"#999"}},(a.project||"\u2014")+" \xb7 "+a.date+" \xb7 Level "+a.overallLevel)),
+            h("button",{onClick:()=>doLoad(a),style:{padding:"4px 9px",borderRadius:4,border:"1px solid #ddd",background:"#fff",color:"#F8485E",fontSize:9,fontWeight:600,cursor:"pointer"}},"Load"),
+            h("button",{onClick:()=>doDel(i),style:{padding:"4px 7px",borderRadius:4,border:"1px solid #eee",background:"#fff",color:"#ccc",fontSize:9,cursor:"pointer"}},"\u2715")
+          )),
+          h("button",{onClick:()=>setShowS(false),style:{marginTop:6,width:"100%",padding:"7px",borderRadius:5,border:"1px solid #ddd",background:"#fff",color:"#666",fontSize:10,fontWeight:600,cursor:"pointer"}},"Close")
+        )
+      ),
+      step==="assess"&&h(React.Fragment,null,
+        h("div",{style:{background:"#fff",borderRadius:10,border:"1px solid #eee",padding:12,marginBottom:14}},
+          h("div",{style:{fontSize:11,fontWeight:600,color:"#333",marginBottom:7}},"Project Details"),
+          h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}},
+            ...[["Enterprise",ent,setEnt,"Company name"],["Project",proj,setProj,"Assessment project"]].map(([l,v,fn,ph])=>
+              h("div",{key:l},h("label",{style:{fontSize:8.5,fontWeight:600,color:"#888",textTransform:"uppercase",letterSpacing:".3px"}},l),h("input",{value:v,onChange:e=>fn(e.target.value),placeholder:ph,style:{width:"100%",padding:"6px 8px",borderRadius:5,border:"1px solid #ddd",fontSize:11,marginTop:2,boxSizing:"border-box"}}))
+            )
+          )
+        ),
+        h("div",{style:{background:"#fff",borderRadius:10,border:"1px solid #eee",padding:"9px 12px",marginBottom:14,display:"flex",alignItems:"center",gap:9}},
+          h("div",{style:{flex:1,background:"#f0f0f0",borderRadius:5,height:6,overflow:"hidden"}},h("div",{style:{width:(aN/tQ*100)+"%",height:"100%",background:"linear-gradient(90deg,#FCA2AE,#F8485E)",borderRadius:5,transition:"width .3s"}})),
+          h("span",{style:{fontSize:10,fontWeight:600,color:"#666"}},aN+"/"+tQ)
+        ),
+        ...Object.entries(QUESTIONS).map(([dn,qs])=>
+          h("div",{key:dn,style:{marginBottom:22}},
+            h("div",{style:{display:"flex",alignItems:"center",gap:7,marginBottom:11}},h("div",{style:{background:"#F8485E",height:2,flex:1}}),h("span",{style:{fontSize:12,fontWeight:700,color:"#F8485E"}},dn),h("div",{style:{background:"#F8485E",height:2,flex:1}})),
+            ...qs.map(q=>{qi++;return h(QuestionCard,{key:q.id,question:q,selected:answers[q.id],onSelect:setAns,index:qi-1});})
+          )
+        ),
+        allDone&&h("button",{onClick:()=>setStep("results"),style:{width:"100%",padding:"11px",borderRadius:8,border:"none",background:"#F8485E",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}},"View Dashboard \u2192")
+      ),
+      step==="results"&&allDone&&h(React.Fragment,null,
+        h("div",{style:{background:"#fff",borderRadius:11,border:"1px solid #eee",padding:16,marginBottom:14,textAlign:"center"}},
+          (ent||proj)&&h("div",{style:{fontSize:10,color:"#999",marginBottom:3}},ent+(ent&&proj?" \u2014 ":"")+proj),
+          h("div",{style:{fontSize:42,fontWeight:700,color:"#1a1a1a"}},oL.toFixed(1)),
+          h("div",{style:{fontSize:12,color:gc(oL),fontWeight:600}},getLevelName(oL)),
+          h("div",{style:{fontSize:9.5,color:"#999",marginTop:2}},"Overall Digital Maturity Level")
+        ),
+        h("div",{style:{display:"flex",gap:5,marginBottom:14,flexWrap:"wrap"}},
+          h("button",{onClick:doSave,style:{padding:"7px 14px",borderRadius:6,border:"1px solid #ddd",background:"#fff",color:"#333",fontSize:10.5,fontWeight:600,cursor:"pointer"}},"\uD83D\uDCBE Save"),
+          h("button",{onClick:doPDF,style:{padding:"7px 14px",borderRadius:6,border:"1px solid #ddd",background:"#fff",color:"#333",fontSize:10.5,fontWeight:600,cursor:"pointer"}},"\uD83D\uDCC4 Export PDF"),
+          sMsg&&h("span",{style:{display:"flex",alignItems:"center",fontSize:10.5,color:"#22c55e",fontWeight:600}},"\u2713 "+sMsg)
+        ),
+        h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:14}},
+          ...Object.entries(res).filter(([,r])=>r).map(([dim,r])=>
+            h("div",{key:dim,style:{background:"#fff",borderRadius:9,padding:13,border:"1px solid #eee"}},
+              h("div",{style:{fontSize:9,color:"#888",fontWeight:600,textTransform:"uppercase",letterSpacing:".5px",marginBottom:2}},dim),
+              h("div",{style:{fontSize:24,fontWeight:700,color:"#1a1a1a"}},r.average.toFixed(1)),
+              h("div",{style:{fontSize:10,color:gc(r.average),fontWeight:500}},getLevelName(r.average)),
+              h("div",{style:{marginTop:7,background:"#f0f0f0",borderRadius:3,height:5,overflow:"hidden"}},h("div",{style:{width:(r.average/5*100)+"%",height:"100%",background:gc(r.average),borderRadius:3}}))
+            )
+          )
+        ),
+        h("div",{style:{display:"flex",gap:4,marginBottom:12}},
+          ...[{id:"dotplot",lb:"Dot Plot"},{id:"radar",lb:"Radar"},{id:"gap",lb:"Gap Analysis"}].map(v=>
+            h("button",{key:v.id,onClick:()=>setView(v.id),style:{padding:"6px 11px",borderRadius:5,fontSize:10,fontWeight:600,cursor:"pointer",border:view===v.id?"2px solid #F8485E":"1px solid #ddd",background:view===v.id?"#FFF0F1":"#fff",color:view===v.id?"#F8485E":"#666"}},v.lb)
+          )
+        ),
+        h("div",{style:{background:"#fff",borderRadius:9,border:"1px solid #eee",overflow:"hidden"}},
+          view==="dotplot"&&h(DotPlot,{results:res}),
+          view==="radar"&&h("div",{style:{display:"flex",justifyContent:"center",padding:13}},h(RadarChart,{results:res})),
+          view==="gap"&&h("div",{style:{padding:14}},h("h3",{style:{fontSize:11.5,fontWeight:700,color:"#333",margin:"0 0 10px"}},"Gap to Level 5"),h(GapBars,{results:res}))
+        ),
+        h("div",{style:{background:"#fff",borderRadius:9,border:"1px solid #eee",padding:13,marginTop:12}},
+          h("div",{style:{fontSize:11.5,fontWeight:700,color:"#333",marginBottom:9}},"Sub-Dimension Scores"),
+          h("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:10.5}},
+            h("thead",null,h("tr",{style:{borderBottom:"2px solid #eee"}},
+              ...["Dimension","Sub-Dimension","Score","Level"].map(x=>h("th",{key:x,style:{textAlign:x==="Score"||x==="Level"?"center":"left",padding:"5px 6px",color:"#888",fontWeight:600,fontSize:9,textTransform:"uppercase"}},x))
+            )),
+            h("tbody",null,
+              ...Object.entries(res).filter(([,r])=>r).flatMap(([dim,r])=>r.subDimensions.map((s,i)=>
+                h("tr",{key:dim+"-"+i,style:{borderBottom:"1px solid #f5f5f5"}},
+                  h("td",{style:{padding:6,fontWeight:600,color:"#333"}},i===0?dim:""),
+                  h("td",{style:{padding:6,color:"#555"}},s.name),
+                  h("td",{style:{padding:6,textAlign:"center"}},s.score.toFixed(2)),
+                  h("td",{style:{padding:6,textAlign:"center"}},h("span",{style:{background:gbg(s.level),color:gc(s.level),padding:"2px 6px",borderRadius:4,fontWeight:700,fontSize:10}},s.level.toFixed(1)))
+                )
+              ))
+            )
+          )
+        ),
+        h("div",{style:{marginTop:12,display:"flex",gap:5}},
+          h("button",{onClick:()=>setStep("assess"),style:{flex:1,padding:"8px",borderRadius:6,border:"1px solid #ddd",background:"#fff",color:"#666",fontSize:10.5,fontWeight:600,cursor:"pointer"}},"\u2190 Edit Answers"),
+          h("button",{onClick:()=>{setAnswers({});setEnt("");setProj("");setStep("assess");},style:{padding:"8px 12px",borderRadius:6,border:"1px solid #ddd",background:"#fff",color:"#999",fontSize:10.5,fontWeight:500,cursor:"pointer"}},"Reset")
+        ),
+        h("p",{style:{fontSize:8,color:"#ccc",textAlign:"right",marginTop:12}},"Devoteam Digital Impulse \xb7 "+new Date().getFullYear())
+      )
+    )
+  );
+}
+
+ReactDOM.render(React.createElement(App),document.getElementById("root"));
+</script>
+</body>
+</html>
