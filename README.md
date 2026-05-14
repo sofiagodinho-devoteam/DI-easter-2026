@@ -6,7 +6,7 @@
 
 This tool is restricted to Devoteam employees (`@devoteam.com` email required).
 
-**Live URL:** `https://[your-github-username].github.io/digital-maturity-assessment/`
+**Live URL:** `https://sofiagodinho-devoteam.github.io/DI-easter-2026/`
 
 ## Features
 
